@@ -307,6 +307,26 @@ class Securimage
     public $use_wordlist   = false;
 
     /**
+     * true to mangle captcha words even more
+     * @var bool
+     */
+    public $mangle_words = false;
+
+    /**
+     * Mangle-mapper array. Use regular and special keys to make converting mangled strings easier
+     * @var array
+     */
+    public $mangler = array(
+        'a' => array('@', '4'),
+        'e' => array('3', '€'),
+        'g' => array('9', '&'),
+        'o' => array('0'),
+        'b' => array('8', '6'),
+        's' => array('5', '$'),
+        'l' => array('1', '|', '<')
+    );
+
+    /**
      * The level of distortion, 0.75 = normal, 1.0 = very high distortion
      * @var double
      */
@@ -830,8 +850,17 @@ class Securimage
      */
     public function check($code)
     {
+        $mangled = false;
+        if (preg_match('/[\d|@$€]/', $code) || $this->mangle_words) {
+            $mangled = $code;
+            $code = $this->mangleWord($code, true);
+        }
         $this->code_entered = $code;
         $this->validate();
+        if ($this->correct_code === false && $mangled === false) {
+            $this->code_entered = $mangled;
+            $this->validate();
+        }
         return $this->correct_code;
     }
 
@@ -1193,6 +1222,9 @@ class Securimage
         if (!is_readable($this->ttf_file)) {
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
         } else {
+            if ($this->mangle_words === true) {
+                $this->code_display = $this->mangleWord($this->code_display);
+            }
             if ($this->perturbation > 0) {
                 $font_size = $height2 * .4;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
@@ -1481,6 +1513,13 @@ class Securimage
             }
 
             $word = strtolower(substr($data, $start, $end - $start)); // return a line of the file
+        if ($this->mangle_words === true) {
+            $word = str_replace(
+            $this->mangler['regular'],
+            $this->mangler['special'],
+            $word
+        );
+        }
             $words[] = $word;
         } while (++$i < $numWords);
 
@@ -1511,6 +1550,33 @@ class Securimage
         }
 
         return $code;
+    }
+
+    /**
+     * mangle given string use mangler property
+     * @param string $word
+     * @param bool de-mangle = false
+     * @return string
+     */
+    protected function mangleWord($word, $de_mangle = false)
+    {
+        if ($de_mangle === true) {
+        foreach ($this->mangler as $char => $mangled) {
+            $word = str_replace($mangled, $char, $word);
+        }
+        return $word;
+    }
+    $rand = mt_rand(1,rand());//get a random base for modulo
+    foreach ($this->mangler as $char => $specials) {
+        if (($rand%ord($char))%2) {
+            $word = str_replace(
+                $char,
+                $specials[array_rand($specials)],
+                $word
+            );
+        }
+    }
+    return $word;
     }
 
     /**
