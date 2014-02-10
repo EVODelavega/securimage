@@ -1561,22 +1561,31 @@ class Securimage
     protected function mangleWord($word, $de_mangle = false)
     {
         if ($de_mangle === true) {
-        foreach ($this->mangler as $char => $mangled) {
-            $word = str_replace($mangled, $char, $word);
+            foreach ($this->mangler as $char => $mangled) {
+                $word = str_replace($mangled, $char, $word);
+            }
+            return $word;
+        }
+        //set a random base for the modulo
+        $rand = mt_rand(1,rand());
+        foreach ($this->mangler as $char => $specials) {
+            //1/2 modulo decides if we mangle this char
+            if (($rand%ord($char))%2) {
+                $occurrences = count($specials);
+                //somewhat limit what we replace
+                $occurrences = $occurrences < substr_count($word, $char) ? $occurrences : substr_count($word, $char);
+                $char = '/'.$char.'/';//make regex, no escaping required, as $char is just a character
+                while($occurrences--) {
+                    $word = preg_replace(
+                        $char,
+                        $specials[array_rand($specials)],
+                        $word,
+                        1
+                    );
+                }
+            }
         }
         return $word;
-    }
-    $rand = mt_rand(1,rand());//get a random base for modulo
-    foreach ($this->mangler as $char => $specials) {
-        if (($rand%ord($char))%2) {
-            $word = str_replace(
-                $char,
-                $specials[array_rand($specials)],
-                $word
-            );
-        }
-    }
-    return $word;
     }
 
     /**
