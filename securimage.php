@@ -857,7 +857,7 @@ class Securimage
         }
         $this->code_entered = $code;
         $this->validate();
-        if ($this->correct_code === false && $mangled === false) {
+        if ($this->correct_code === false && $mangled !== false) {
             $this->code_entered = $mangled;
             $this->validate();
         }
